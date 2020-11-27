@@ -21,6 +21,7 @@ func NewSqlBuilder() *sqlBuilder {
 func (m *sqlBuilder) Select(cols ...string) *sqlBuilder {
 	m.sql.WriteString("SELECT ")
 	m.sql.WriteString(strings.Join(cols, ", "))
+	fmt.Println(m.sql.String())
 	return m
 }
 
