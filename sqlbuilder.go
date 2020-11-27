@@ -41,6 +41,7 @@ func (m *sqlBuilder) Where(query string, value interface{}) *sqlBuilder {
 	}
 	m.And()
 	m.sql.WriteString(query)
+	m.sql.WriteString(" ")
 	m.values = append(m.values, value)
 	m.link = true
 	return m
@@ -51,11 +52,13 @@ func (m *sqlBuilder) Join(join string, value ...interface{}) *sqlBuilder {
 	if len(value) > 0 {
 		m.values = append(m.values, value...)
 	}
+	m.sql.WriteString(" ")
 	return m
 }
 
 func (m *sqlBuilder) Append(query string) *sqlBuilder {
 	m.sql.WriteString(query)
+	m.sql.WriteString(" ")
 	return m
 }
 
@@ -72,6 +75,6 @@ func (m *sqlBuilder) And() *sqlBuilder {
 }
 
 func (m *sqlBuilder) Or() *sqlBuilder {
-	m.sql.WriteString("AND ")
+	m.sql.WriteString("Or ")
 	return m
 }
