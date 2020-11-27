@@ -26,7 +26,7 @@ func (m *sqlBuilder) Select(cols ...string) *sqlBuilder {
 }
 
 func (m *sqlBuilder) From(table string) *sqlBuilder {
-	m.sql.WriteString(" FORM ")
+	m.sql.WriteString(" FROM ")
 	m.sql.WriteString(table)
 	m.sql.WriteString(" a ")
 
