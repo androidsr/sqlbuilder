@@ -137,6 +137,7 @@ func (m *builder) Where(query string, value interface{}) *builder {
 	}
 	m.And()
 	m.sql.WriteString(query)
+	m.sql.WriteString(" ")
 	m.values = append(m.values, value)
 	m.link = true
 	return m
@@ -178,12 +179,14 @@ func (m *builder) Join(join string, value ...interface{}) *builder {
 	if len(value) > 0 {
 		m.values = append(m.values, value...)
 	}
+	m.sql.WriteString(" ")
 	return m
 }
 
 //追加任意SQL
 func (m *builder) Append(query string) *builder {
 	m.sql.WriteString(query)
+	m.sql.WriteString(" ")
 	return m
 }
 
@@ -203,6 +206,6 @@ func (m *builder) And() *builder {
 
 //手动增加OR
 func (m *builder) Or() *builder {
-	m.sql.WriteString("AND ")
+	m.sql.WriteString("OR ")
 	return m
 }
