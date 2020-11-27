@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"strings"
 )
-
+var _VERSION_ = "v0.0.1"
 type builder struct {
 	sql    bytes.Buffer
 	values []interface{}
