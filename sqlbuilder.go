@@ -2,7 +2,6 @@ package sqlbuilder
 
 import (
 	"bytes"
-	"fmt"
 	"strings"
 )
 
@@ -21,7 +20,6 @@ func NewSqlBuilder() *sqlBuilder {
 func (m *sqlBuilder) Select(cols ...string) *sqlBuilder {
 	m.sql.WriteString("SELECT ")
 	m.sql.WriteString(strings.Join(cols, ", "))
-	fmt.Println(m.sql.String())
 	return m
 }
 
@@ -65,7 +63,6 @@ func (m *sqlBuilder) Append(query string) *sqlBuilder {
 }
 
 func (m *sqlBuilder) Build() (string, []interface{}) {
-	fmt.Println(m.sql.String(), m.values)
 	return m.sql.String(), m.values
 }
 
