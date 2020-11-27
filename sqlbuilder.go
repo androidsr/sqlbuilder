@@ -1,8 +1,8 @@
 package sqlbuilder
 
-
 import (
 	"bytes"
+	"fmt"
 	"strings"
 )
 
@@ -64,6 +64,7 @@ func (m *sqlBuilder) Append(query string) *sqlBuilder {
 }
 
 func (m *sqlBuilder) Build() (string, []interface{}) {
+	fmt.Println(m.sql.String(), m.values)
 	return m.sql.String(), m.values
 }
 
