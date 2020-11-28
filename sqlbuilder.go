@@ -2,9 +2,20 @@ package sqlbuilder
 
 import (
 	"bytes"
+	"database/sql"
+	"fmt"
+	"reflect"
 	"strings"
 )
-var _VERSION_ = "v0.0.1"
+
+const (
+	String = iota
+	Int64
+	Float64
+	Bool
+	Other
+)
+
 type builder struct {
 	sql    bytes.Buffer
 	values []interface{}
@@ -28,6 +39,17 @@ type deleteBuilder struct {
 	builder
 }
 
+type mapping struct {
+	Fields       []string      //属性名称
+	Cols         []string      //属性对应表列表名称
+	NotEmptyCols []string      //非空值 对应表列表名称
+	Values       []interface{} //非空值
+	Pk           string        //主键列名称
+	PkValue      interface{}   //主键值
+	rowsClose    bool          //自动关闭
+	dataType     []int         //数据类型
+}
+
 func NewSelect() *selectBuilder {
 	t := new(selectBuilder)
 	return t
@@ -46,6 +68,147 @@ func NewUpdate() *updateBuilder {
 func NewDelete() *deleteBuilder {
 	t := new(deleteBuilder)
 	return t
+}
+
+func NewMapping() *mapping {
+	t := new(mapping)
+	t.rowsClose = true
+	return t
+}
+
+func (m *mapping) ReadTarget(target interface{}) *mapping {
+	t := reflect.TypeOf(target)
+	v := reflect.ValueOf(target)
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+		v = v.Elem()
+	}
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		value := v.Field(i).Interface()
+		switch value.(type) {
+		case string:
+			m.dataType = append(m.dataType, String)
+		case int64:
+			m.dataType = append(m.dataType, Int64)
+		case float64:
+			m.dataType = append(m.dataType, Float64)
+		case bool:
+			m.dataType = append(m.dataType, Bool)
+		default:
+			m.dataType = append(m.dataType, Other)
+		}
+		m.Fields = append(m.Fields, f.Name)
+		tg := f.Tag
+		dbName := tg.Get("db")
+		if dbName == "" {
+			dbName = tg.Get("json")
+		}
+		if dbName == "" {
+			dbName = tg.Get(m.nameTag(f.Name))
+		}
+		m.Cols = append(m.Cols, dbName)
+		if value != nil {
+			m.NotEmptyCols = append(m.NotEmptyCols, dbName)
+			m.Values = append(m.Values, value)
+		}
+		if tg.Get("pk") == "true" {
+			m.Pk = dbName
+			m.PkValue = value
+		}
+	}
+	return m
+}
+
+func (m *mapping) ScanStruct(rows *sql.Rows, dest interface{}) interface{} {
+	columns, _ := rows.Columns()
+	if len(m.Fields) == 0 {
+		m.ReadTarget(dest)
+	}
+	t := reflect.TypeOf(dest)
+	if t.Kind() == reflect.Ptr { //指针类型获取真正type需要调用Elem
+		t = t.Elem()
+	}
+	cache := make([]interface{}, len(columns))
+	for index, _ := range cache {
+		var a interface{}
+		cache[index] = &a
+	}
+	if rows.Next() {
+		rows.Scan(cache...)
+	}
+	newStruc := reflect.New(t)
+	for c, col := range columns {
+		for i, tag := range m.Cols {
+			if col == tag {
+				name := m.Fields[i]
+				switch m.dataType[i] {
+				case String:
+					newStruc.Elem().FieldByName(name).SetString(*cache[c].(*string))
+				case Int64:
+					newStruc.Elem().FieldByName(name).SetInt(*cache[c].(*int64))
+				case Float64:
+					newStruc.Elem().FieldByName(name).SetFloat(*cache[c].(*float64))
+				case Bool:
+					newStruc.Elem().FieldByName(name).SetBool(*cache[c].(*bool))
+				default:
+					newStruc.Elem().FieldByName(name).SetString(*cache[c].(*string))
+				}
+			}
+		}
+	}
+	fmt.Println(newStruc)
+	return newStruc
+}
+
+func (m *mapping) ScanArrayStruct(rows *sql.Rows, dest interface{}) {
+	if m.rowsClose {
+		defer rows.Close()
+	}
+
+}
+
+func (m *mapping) ScanMap(rows *sql.Rows) ([]map[string]interface{}, error) {
+	if m.rowsClose {
+		defer rows.Close()
+	}
+	columns, _ := rows.Columns()
+	columnLength := len(columns)
+	cache := make([]interface{}, columnLength)
+	for index, _ := range cache {
+		var a interface{}
+		cache[index] = &a
+	}
+	var list []map[string]interface{}
+	for rows.Next() {
+		err := rows.Scan(cache...)
+		if err != nil {
+			return nil, err
+		}
+		item := make(map[string]interface{})
+		for i, data := range cache {
+			item[columns[i]] = *data.(*interface{})
+		}
+		list = append(list, item)
+	}
+	return list, nil
+}
+
+func (m *mapping) RowsClose(auto bool) *mapping {
+	m.rowsClose = auto
+	return m
+}
+
+func (m *mapping) nameTag(name string) string {
+	vv := []rune(name)
+	buf := bytes.Buffer{}
+	for _, v := range vv {
+		if v < 97 || v > 122 {
+			buf.WriteRune('_')
+		}
+		buf.WriteRune(v)
+	}
+	return buf.String()
 }
 
 //===================================插入语句==============================================
