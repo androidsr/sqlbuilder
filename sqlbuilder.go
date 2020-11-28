@@ -9,11 +9,11 @@ import (
 )
 
 const (
-	String = iota
-	Int64
-	Float64
-	Bool
-	Other
+	iotaString = iota
+	iotaInt64
+	iotaFloat64
+	iotaBool
+	iotaOther
 )
 
 type builder struct {
@@ -88,15 +88,15 @@ func (m *mapping) ReadTarget(target interface{}) *mapping {
 		value := v.Field(i).Interface()
 		switch value.(type) {
 		case string:
-			m.dataType = append(m.dataType, String)
+			m.dataType = append(m.dataType, iotaString)
 		case int64:
-			m.dataType = append(m.dataType, Int64)
+			m.dataType = append(m.dataType, iotaInt64)
 		case float64:
-			m.dataType = append(m.dataType, Float64)
+			m.dataType = append(m.dataType, iotaFloat64)
 		case bool:
-			m.dataType = append(m.dataType, Bool)
+			m.dataType = append(m.dataType, iotaBool)
 		default:
-			m.dataType = append(m.dataType, Other)
+			m.dataType = append(m.dataType, iotaOther)
 		}
 		m.Fields = append(m.Fields, f.Name)
 		tg := f.Tag
@@ -143,13 +143,13 @@ func (m *mapping) ScanStruct(rows *sql.Rows, dest interface{}) interface{} {
 			if col == tag {
 				name := m.Fields[i]
 				switch m.dataType[i] {
-				case String:
+				case iotaString:
 					newStruc.Elem().FieldByName(name).SetString(*cache[c].(*string))
-				case Int64:
+				case iotaInt64:
 					newStruc.Elem().FieldByName(name).SetInt(*cache[c].(*int64))
-				case Float64:
+				case iotaFloat64:
 					newStruc.Elem().FieldByName(name).SetFloat(*cache[c].(*float64))
-				case Bool:
+				case iotaBool:
 					newStruc.Elem().FieldByName(name).SetBool(*cache[c].(*bool))
 				default:
 					newStruc.Elem().FieldByName(name).SetString(*cache[c].(*string))
