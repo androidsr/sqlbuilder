@@ -40,14 +40,15 @@ type deleteBuilder struct {
 }
 
 type mapping struct {
-	Fields       []string      //属性名称
-	Cols         []string      //属性对应表列表名称
-	NotEmptyCols []string      //非空值 对应表列表名称
-	Values       []interface{} //非空值
-	Pk           string        //主键列名称
-	PkValue      interface{}   //主键值
+	fields       []string      //属性名称
+	cols         []string      //属性对应表列表名称
+	notEmptyCols []string      //非空值 对应表列表名称
+	values       []interface{} //非空值
+	pk           string        //主键列名称
+	pkValue      interface{}   //主键值
 	rowsClose    bool          //自动关闭
 	dataType     []int         //数据类型
+	tableName    string        //表名
 }
 
 func NewSelect() *selectBuilder {
@@ -83,8 +84,11 @@ func (m *mapping) ReadTarget(target interface{}) *mapping {
 		t = t.Elem()
 		v = v.Elem()
 	}
+	m.tableName = m.nameTag(t.Name())
+	fmt.Println(m.tableName)
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
+		m.fields = append(m.fields, f.Name)
 		value := v.Field(i).Interface()
 		switch value.(type) {
 		case string:
@@ -98,7 +102,6 @@ func (m *mapping) ReadTarget(target interface{}) *mapping {
 		default:
 			m.dataType = append(m.dataType, iotaOther)
 		}
-		m.Fields = append(m.Fields, f.Name)
 		tg := f.Tag
 		dbName := tg.Get("db")
 		if dbName == "" {
@@ -107,14 +110,14 @@ func (m *mapping) ReadTarget(target interface{}) *mapping {
 		if dbName == "" {
 			dbName = tg.Get(m.nameTag(f.Name))
 		}
-		m.Cols = append(m.Cols, dbName)
+		m.cols = append(m.cols, dbName)
 		if value != nil {
-			m.NotEmptyCols = append(m.NotEmptyCols, dbName)
-			m.Values = append(m.Values, value)
+			m.notEmptyCols = append(m.notEmptyCols, dbName)
+			m.values = append(m.values, value)
 		}
 		if tg.Get("pk") == "true" {
-			m.Pk = dbName
-			m.PkValue = value
+			m.pk = dbName
+			m.pkValue = value
 		}
 	}
 	return m
@@ -122,7 +125,7 @@ func (m *mapping) ReadTarget(target interface{}) *mapping {
 
 func (m *mapping) ScanStruct(rows *sql.Rows, dest interface{}) interface{} {
 	columns, _ := rows.Columns()
-	if len(m.Fields) == 0 {
+	if len(m.fields) == 0 {
 		m.ReadTarget(dest)
 	}
 	t := reflect.TypeOf(dest)
@@ -139,9 +142,9 @@ func (m *mapping) ScanStruct(rows *sql.Rows, dest interface{}) interface{} {
 	}
 	newStruc := reflect.New(t)
 	for c, col := range columns {
-		for i, tag := range m.Cols {
+		for i, tag := range m.cols {
 			if col == tag {
-				name := m.Fields[i]
+				name := m.fields[i]
 				switch m.dataType[i] {
 				case iotaString:
 					newStruc.Elem().FieldByName(name).SetString(*cache[c].(*string))
